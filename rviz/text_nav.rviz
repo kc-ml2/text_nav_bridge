@@ -1,0 +1,154 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+  - Class: rviz_common/Time
+    Name: Time
+
+Visualization Manager:
+  Class: ""
+  Displays:
+    # === Map ===
+    - Class: rviz_default_plugins/Map
+      Name: Map
+      Enabled: true
+      Topic:
+        Value: /map
+        Depth: 5
+      Alpha: 0.7
+      Color Scheme: map
+
+    # === Robot Position (TF) ===
+    - Class: rviz_default_plugins/TF
+      Name: TF
+      Enabled: true
+      Show Arrows: true
+      Show Axes: true
+      Show Names: true
+      Frame Timeout: 15
+      Frames:
+        map:
+          Value: true
+        odom:
+          Value: true
+        camera_link:
+          Value: true
+      Tree:
+        map:
+          odom:
+            camera_link: {}
+
+    # === Nav2 Global Plan ===
+    - Class: rviz_default_plugins/Path
+      Name: Global Plan
+      Enabled: true
+      Topic:
+        Value: /plan
+        Depth: 5
+      Color: 0; 255; 0
+      Line Style: Lines
+      Alpha: 1.0
+
+    # === Nav2 Local Plan ===
+    - Class: rviz_default_plugins/Path
+      Name: Local Plan
+      Enabled: true
+      Topic:
+        Value: /local_plan
+        Depth: 5
+      Color: 255; 255; 0
+      Line Style: Lines
+      Alpha: 0.8
+
+    # === Global Costmap ===
+    - Class: rviz_default_plugins/Map
+      Name: Global Costmap
+      Enabled: false
+      Topic:
+        Value: /global_costmap/costmap
+        Depth: 5
+      Alpha: 0.3
+      Color Scheme: costmap
+
+    # === Local Costmap ===
+    - Class: rviz_default_plugins/Map
+      Name: Local Costmap
+      Enabled: true
+      Topic:
+        Value: /local_costmap/costmap
+        Depth: 5
+      Alpha: 0.4
+      Color Scheme: costmap
+
+    # === Text Nav Goal Marker ===
+    - Class: rviz_default_plugins/Marker
+      Name: Nav Goal Marker
+      Enabled: true
+      Topic:
+        Value: /text_nav/goal_marker
+        Depth: 5
+
+    # === TextMap Landmarks ===
+    - Class: rviz_default_plugins/MarkerArray
+      Name: Text Landmarks
+      Enabled: true
+      Topic:
+        Value: /textmap/markers
+        Depth: 5
+
+    # === RTAB-Map Point Cloud ===
+    - Class: rviz_default_plugins/PointCloud2
+      Name: Point Cloud
+      Enabled: false
+      Topic:
+        Value: /rtabmap/cloud_map
+        Depth: 5
+      Size (Pixels): 2
+      Color Transformer: RGB8
+      Use Fixed Frame: true
+
+    # === RTAB-Map Map Path ===
+    - Class: rviz_default_plugins/Path
+      Name: SLAM Path
+      Enabled: true
+      Topic:
+        Value: /rtabmap/mapPath
+        Depth: 5
+      Color: 0; 128; 255
+
+  Global Options:
+    Background Color: 48; 48; 48
+    Fixed Frame: map
+    Frame Rate: 30
+
+  Tools:
+    - Class: rviz_default_plugins/Interact
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/Select
+    - Class: rviz_default_plugins/FocusCamera
+    - Class: rviz_default_plugins/Measure
+    - Class: rviz_default_plugins/SetInitialPose
+    - Class: rviz_default_plugins/SetGoal
+    - Class: rviz_default_plugins/PublishPoint
+
+  Value: true
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 20
+      Focal Point:
+        X: 0
+        Y: 0
+        Z: 0
+      Name: Current View
+      Near Clip Distance: 0.01
+      Pitch: 0.5
+      Target Frame: <Fixed Frame>
+      Yaw: 0.5
+
+Window Geometry:
+  Displays:
+    collapsed: false
+  Height: 800
+  Width: 1200
+  X: 100
+  Y: 100
