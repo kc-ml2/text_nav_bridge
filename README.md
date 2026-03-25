@@ -26,7 +26,13 @@ source install/setup.bash
 
 Requires Phase 1 outputs: `rtabmap.db` (map) and `landmarks.yaml` (text landmarks).
 
-### 1. Play rosbag or run real camera
+### 1. Launch navigation stack
+
+```bash
+ros2 launch text_nav_bridge text_nav.launch.py landmark_file:=/path/to/landmarks.yaml
+```
+
+### 2. Play rosbag or run real camera
 
 ```bash
 # Rosbag
@@ -34,12 +40,6 @@ ros2 bag play <your_bagfile> --clock
 
 # Or real camera
 ros2 launch rtabmap_ros realsense_infra_for_record.launch.py
-```
-
-### 2. Launch navigation stack
-
-```bash
-ros2 launch text_nav_bridge text_nav.launch.py landmark_file:=/path/to/landmarks.yaml
 ```
 
 This launches:
