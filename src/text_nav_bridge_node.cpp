@@ -2,10 +2,7 @@
 #include <textmap/text_similarity.hpp>
 #include <yaml-cpp/yaml.h>
 #include <tf2/utils.h>
-#include <algorithm>
-#include <cctype>
 #include <cmath>
-#include <fstream>
 
 namespace text_nav_bridge
 {
@@ -16,7 +13,7 @@ TextNavBridgeNode::TextNavBridgeNode(const rclcpp::NodeOptions & options)
   // Declare parameters
   this->declare_parameter("landmark_file", "");
   this->declare_parameter("match_threshold", 0.5);
-  this->declare_parameter("approach_distance", 1.0);
+  this->declare_parameter("approach_distance", 1.5);
   this->declare_parameter("robot_frame", "camera_link");
   this->declare_parameter("world_frame", "map");
 
@@ -40,17 +37,24 @@ TextNavBridgeNode::TextNavBridgeNode(const rclcpp::NodeOptions & options)
   loadLandmarks(landmark_file_);
 
   // Nav2 action client
-  nav_client_ = rclcpp_action::create_client<NavigateToPose>(this, "navigate_to_pose");
+  nav_client_ = rclcpp_action::create_client<NavigateToPose>(this, action_server_name_);
 
   // Subscribers
   command_sub_ = this->create_subscription<std_msgs::msg::String>(
-    "/text_nav/command", 10,
+    command_topic_, 10,
     std::bind(&TextNavBridgeNode::commandCallback, this, std::placeholders::_1));
 
   // Publishers
-  status_pub_ = this->create_publisher<std_msgs::msg::String>("/text_nav/status", 10);
+  status_pub_ = this->create_publisher<std_msgs::msg::String>(status_topic_, 10);
   goal_marker_pub_ = this->create_publisher<visualization_msgs::msg::Marker>(
-    "/text_nav/goal_marker", 10);
+    goal_marker_topic_, 10);
+  landmark_marker_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>(
+    landmark_marker_topic_, 10);
+
+  // Publish landmark markers periodically (1 Hz)
+  landmark_marker_timer_ = this->create_wall_timer(
+    std::chrono::duration<double>(marker_publish_rate_sec_),
+    std::bind(&TextNavBridgeNode::publishLandmarkMarkers, this));
 
   RCLCPP_INFO(this->get_logger(), "TextNavBridge started with %zu landmarks loaded",
               landmarks_.size());
@@ -83,7 +87,6 @@ void TextNavBridgeNode::loadLandmarks(const std::string & filepath)
     entry.y = node["position"]["y"].as<double>();
     entry.z = node["position"]["z"].as<double>();
     entry.confidence = node["confidence"].as<double>();
-    entry.observation_count = node["observation_count"].as<int>();
     landmarks_.push_back(entry);
 
     RCLCPP_INFO(this->get_logger(), "  Loaded landmark #%d: '%s' at (%.2f, %.2f, %.2f)",
@@ -152,7 +155,7 @@ int TextNavBridgeNode::findBestLandmark(const std::string & query)
         double dy = landmarks_[i].y - robot_y;
         best_dist = std::sqrt(dx * dx + dy * dy);
       }
-    } else if (std::abs(sim - best_sim) < 0.01 && has_robot_pos) {
+    } else if (std::abs(sim - best_sim) < similarity_epsilon_ && has_robot_pos) {
       // Same text similarity — pick the closer one
       double dx = landmarks_[i].x - robot_x;
       double dy = landmarks_[i].y - robot_y;
@@ -174,7 +177,8 @@ int TextNavBridgeNode::findBestLandmark(const std::string & query)
 
 void TextNavBridgeNode::sendGoal(const LandmarkEntry & landmark)
 {
-  if (!nav_client_->wait_for_action_server(std::chrono::seconds(5))) {
+  if (!nav_client_->wait_for_action_server(
+        std::chrono::duration<double>(action_server_timeout_sec_))) {
     RCLCPP_ERROR(this->get_logger(), "Nav2 action server not available");
     auto status = std_msgs::msg::String();
     status.data = "ERROR: Nav2 action server not available";
@@ -299,7 +303,7 @@ bool TextNavBridgeNode::getRobotPosition(double & x, double & y)
 {
   try {
     auto transform = tf_buffer_->lookupTransform(
-      world_frame_, robot_frame_, tf2::TimePointZero, tf2::durationFromSec(1.0));
+      world_frame_, robot_frame_, tf2::TimePointZero, tf2::durationFromSec(tf_lookup_timeout_sec_));
     x = transform.transform.translation.x;
     y = transform.transform.translation.y;
     return true;
@@ -315,21 +319,76 @@ void TextNavBridgeNode::publishGoalMarker(
 {
   visualization_msgs::msg::Marker marker;
   marker.header = goal_pose.header;
-  marker.ns = "text_nav_goal";
+  marker.ns = goal_marker_ns_;
   marker.id = 0;
   marker.type = visualization_msgs::msg::Marker::ARROW;
   marker.action = visualization_msgs::msg::Marker::ADD;
   marker.pose = goal_pose.pose;
-  marker.scale.x = 0.5;
-  marker.scale.y = 0.1;
-  marker.scale.z = 0.1;
-  marker.color.r = 0.0;
-  marker.color.g = 1.0;
-  marker.color.b = 0.0;
-  marker.color.a = 1.0;
+  marker.scale.x = goal_marker_scale_x_;
+  marker.scale.y = goal_marker_scale_yz_;
+  marker.scale.z = goal_marker_scale_yz_;
+  marker.color.r = goal_marker_color_r_;
+  marker.color.g = goal_marker_color_g_;
+  marker.color.b = goal_marker_color_b_;
+  marker.color.a = goal_marker_color_a_;
   marker.lifetime = rclcpp::Duration(0, 0);  // Persistent
   marker.text = text;
   goal_marker_pub_->publish(marker);
+}
+
+void TextNavBridgeNode::publishLandmarkMarkers()
+{
+  visualization_msgs::msg::MarkerArray marker_array;
+  int marker_id = 0;
+
+  for (const auto & lm : landmarks_) {
+    // Cube marker
+    visualization_msgs::msg::Marker marker;
+    marker.header.frame_id = world_frame_;
+    marker.header.stamp = this->now();
+    marker.ns = landmark_marker_ns_;
+    marker.id = marker_id++;
+    marker.type = visualization_msgs::msg::Marker::CUBE;
+    marker.action = visualization_msgs::msg::Marker::ADD;
+    marker.pose.position.x = lm.x;
+    marker.pose.position.y = lm.y;
+    marker.pose.position.z = lm.z;
+    marker.pose.orientation.w = 1.0;
+    marker.scale.x = landmark_cube_size_;
+    marker.scale.y = landmark_cube_size_;
+    marker.scale.z = landmark_cube_size_;
+
+    if (lm.confidence >= high_conf_threshold_) {
+      marker.color.r = 0.0; marker.color.g = 0.8; marker.color.b = 0.0;
+    } else if (lm.confidence >= mid_conf_threshold_) {
+      marker.color.r = 1.0; marker.color.g = 0.8; marker.color.b = 0.0;
+    } else {
+      marker.color.r = 1.0; marker.color.g = 0.4; marker.color.b = 0.0;
+    }
+    marker.color.a = landmark_marker_alpha_;
+    marker.lifetime = rclcpp::Duration(0, 0);
+    marker_array.markers.push_back(marker);
+
+    // Text label
+    visualization_msgs::msg::Marker text_marker;
+    text_marker.header = marker.header;
+    text_marker.ns = landmark_text_ns_;
+    text_marker.id = marker_id++;
+    text_marker.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
+    text_marker.action = visualization_msgs::msg::Marker::ADD;
+    text_marker.pose = marker.pose;
+    text_marker.pose.position.z += text_z_offset_;
+    text_marker.text = lm.text;
+    text_marker.scale.z = text_marker_scale_;
+    text_marker.color.r = 1.0;
+    text_marker.color.g = 1.0;
+    text_marker.color.b = 1.0;
+    text_marker.color.a = 1.0;
+    text_marker.lifetime = rclcpp::Duration(0, 0);
+    marker_array.markers.push_back(text_marker);
+  }
+
+  landmark_marker_pub_->publish(marker_array);
 }
 
 }  // namespace text_nav_bridge

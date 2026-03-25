@@ -110,7 +110,8 @@ def generate_launch_description():
         Node(
             package='imu_filter_madgwick',
             executable='imu_filter_madgwick_node',
-            output='screen',
+            output='log',
+            arguments=['--ros-args', '--log-level', 'error'],
             parameters=[{
                 'use_mag': False,
                 'world_frame': 'enu',
@@ -123,7 +124,8 @@ def generate_launch_description():
         Node(
             package='rtabmap_odom',
             executable='rgbd_odometry',
-            output='screen',
+            output='log',
+            arguments=['--ros-args', '--log-level', 'error'],
             parameters=rtabmap_parameters,
             remappings=rtabmap_remappings
         ),
@@ -133,7 +135,8 @@ def generate_launch_description():
         Node(
             package='rtabmap_slam',
             executable='rtabmap',
-            output='screen',
+            output='log',
+            arguments=['--ros-args', '--log-level', 'error'],
             parameters=rtabmap_parameters,
             remappings=rtabmap_remappings
         ),
@@ -147,6 +150,7 @@ def generate_launch_description():
                 'use_sim_time': use_sim_time,
                 'params_file': nav2_params_file,
                 'autostart': 'true',
+                'log_level': 'warn',
             }.items()
         ),
 
@@ -159,9 +163,19 @@ def generate_launch_description():
             parameters=[{
                 'landmark_file': landmark_file,
                 'match_threshold': 0.5,
-                'approach_distance': 1.0,
+                'approach_distance': 1.5,
                 'robot_frame': 'camera_link',
                 'world_frame': 'map',
             }]
+        ),
+
+        # === RViz ===
+        Node(
+            package='rviz2',
+            executable='rviz2',
+            name='rviz2',
+            arguments=['-d', os.path.join(text_nav_bridge_dir, 'rviz', 'text_nav.rviz'),
+                       '--ros-args', '--log-level', 'warn'],
+            output='screen',
         ),
     ])
