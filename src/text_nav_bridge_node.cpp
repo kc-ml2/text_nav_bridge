@@ -2,6 +2,8 @@
 #include <textmap/text_similarity.hpp>
 #include <yaml-cpp/yaml.h>
 #include <tf2/utils.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#include <algorithm>
 #include <cmath>
 
 namespace text_nav_bridge
@@ -13,14 +15,12 @@ TextNavBridgeNode::TextNavBridgeNode(const rclcpp::NodeOptions & options)
   // Declare parameters
   this->declare_parameter("landmark_file", "");
   this->declare_parameter("match_threshold", 0.5);
-  this->declare_parameter("approach_distance", 1.5);
   this->declare_parameter("robot_frame", "camera_link");
   this->declare_parameter("world_frame", "map");
 
   // Get parameters
   landmark_file_ = this->get_parameter("landmark_file").as_string();
   match_threshold_ = this->get_parameter("match_threshold").as_double();
-  approach_distance_ = this->get_parameter("approach_distance").as_double();
   robot_frame_ = this->get_parameter("robot_frame").as_string();
   world_frame_ = this->get_parameter("world_frame").as_string();
 
@@ -44,6 +44,11 @@ TextNavBridgeNode::TextNavBridgeNode(const rclcpp::NodeOptions & options)
     command_topic_, 10,
     std::bind(&TextNavBridgeNode::commandCallback, this, std::placeholders::_1));
 
+  costmap_sub_ = this->create_subscription<nav_msgs::msg::OccupancyGrid>(
+    costmap_topic_,
+    rclcpp::QoS(1).transient_local().reliable(),
+    std::bind(&TextNavBridgeNode::costmapCallback, this, std::placeholders::_1));
+
   // Publishers
   status_pub_ = this->create_publisher<std_msgs::msg::String>(status_topic_, 10);
   goal_marker_pub_ = this->create_publisher<visualization_msgs::msg::Marker>(
@@ -59,7 +64,6 @@ TextNavBridgeNode::TextNavBridgeNode(const rclcpp::NodeOptions & options)
   RCLCPP_INFO(this->get_logger(), "TextNavBridge started with %zu landmarks loaded",
               landmarks_.size());
   RCLCPP_INFO(this->get_logger(), "  Match threshold: %.2f", match_threshold_);
-  RCLCPP_INFO(this->get_logger(), "  Approach distance: %.1fm", approach_distance_);
 }
 
 void TextNavBridgeNode::loadLandmarks(const std::string & filepath)
@@ -140,8 +144,8 @@ int TextNavBridgeNode::findBestLandmark(const std::string & query)
   double best_sim = 0.0;
   double best_dist = std::numeric_limits<double>::max();
 
-  double robot_x = 0.0, robot_y = 0.0;
-  bool has_robot_pos = getRobotPosition(robot_x, robot_y);
+  double robot_x = 0.0, robot_y = 0.0, robot_yaw = 0.0;
+  bool has_robot_pos = getRobotPose(robot_x, robot_y, robot_yaw);
 
   for (size_t i = 0; i < landmarks_.size(); i++) {
     double sim = text_utils::textSimilarity(query, landmarks_[i].text);
@@ -186,9 +190,8 @@ void TextNavBridgeNode::sendGoal(const LandmarkEntry & landmark)
     return;
   }
 
-  // Compute goal pose: approach_distance_ meters in front of landmark
-  double robot_x = 0.0, robot_y = 0.0;
-  if (!getRobotPosition(robot_x, robot_y)) {
+  double robot_x = 0.0, robot_y = 0.0, robot_yaw = 0.0;
+  if (!getRobotPose(robot_x, robot_y, robot_yaw)) {
     RCLCPP_ERROR(this->get_logger(), "Cannot get robot position from TF");
     auto status = std_msgs::msg::String();
     status.data = "ERROR: Cannot get robot position";
@@ -196,28 +199,26 @@ void TextNavBridgeNode::sendGoal(const LandmarkEntry & landmark)
     return;
   }
 
-  // Direction from robot to landmark
-  double dx = landmark.x - robot_x;
-  double dy = landmark.y - robot_y;
-  double dist = std::sqrt(dx * dx + dy * dy);
-  double yaw = std::atan2(dy, dx);
+  // Find nearest free cell from landmark toward robot via ray-march
+  double goal_x, goal_y;
+  if (!findNearestFreeGoal(landmark.x, landmark.y, robot_x, robot_y, goal_x, goal_y)) {
+    RCLCPP_ERROR(this->get_logger(), "Costmap not yet received, cannot compute goal");
+    auto status = std_msgs::msg::String();
+    status.data = "ERROR: Costmap not yet received";
+    status_pub_->publish(status);
+    return;
+  }
 
-  // Goal position: approach_distance_ before the landmark
+  // Face toward the landmark from the goal position
+  double yaw = std::atan2(landmark.y - goal_y, landmark.x - goal_x);
+
   geometry_msgs::msg::PoseStamped goal_pose;
   goal_pose.header.frame_id = world_frame_;
   goal_pose.header.stamp = this->now();
-
-  if (dist > approach_distance_) {
-    goal_pose.pose.position.x = landmark.x - approach_distance_ * (dx / dist);
-    goal_pose.pose.position.y = landmark.y - approach_distance_ * (dy / dist);
-  } else {
-    // Already close enough, just face the landmark
-    goal_pose.pose.position.x = robot_x;
-    goal_pose.pose.position.y = robot_y;
-  }
+  goal_pose.pose.position.x = goal_x;
+  goal_pose.pose.position.y = goal_y;
   goal_pose.pose.position.z = 0.0;
 
-  // Orientation: face the landmark
   goal_pose.pose.orientation.x = 0.0;
   goal_pose.pose.orientation.y = 0.0;
   goal_pose.pose.orientation.z = std::sin(yaw / 2.0);
@@ -238,10 +239,11 @@ void TextNavBridgeNode::sendGoal(const LandmarkEntry & landmark)
 
   nav_client_->async_send_goal(goal_msg, send_goal_options);
 
+  double goal_dist = std::sqrt(std::pow(goal_x - robot_x, 2) + std::pow(goal_y - robot_y, 2));
   RCLCPP_INFO(this->get_logger(),
               "Sent goal to '%s': (%.2f, %.2f), yaw=%.1f°, distance=%.1fm",
               landmark.text.c_str(), goal_pose.pose.position.x,
-              goal_pose.pose.position.y, yaw * 180.0 / M_PI, dist);
+              goal_pose.pose.position.y, yaw * 180.0 / M_PI, goal_dist);
 
   publishGoalMarker(goal_pose, landmark.text);
 
@@ -299,18 +301,91 @@ void TextNavBridgeNode::resultCallback(const GoalHandleNav::WrappedResult & resu
   status_pub_->publish(status);
 }
 
-bool TextNavBridgeNode::getRobotPosition(double & x, double & y)
+bool TextNavBridgeNode::getRobotPose(double & x, double & y, double & yaw)
 {
   try {
     auto transform = tf_buffer_->lookupTransform(
       world_frame_, robot_frame_, tf2::TimePointZero, tf2::durationFromSec(tf_lookup_timeout_sec_));
     x = transform.transform.translation.x;
     y = transform.transform.translation.y;
+    yaw = tf2::getYaw(transform.transform.rotation);
     return true;
   } catch (const tf2::TransformException & ex) {
     RCLCPP_WARN(this->get_logger(), "TF lookup failed: %s", ex.what());
     return false;
   }
+}
+
+void TextNavBridgeNode::costmapCallback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg)
+{
+  latest_costmap_ = msg;
+}
+
+bool TextNavBridgeNode::findNearestFreeGoal(
+  double landmark_x, double landmark_y,
+  double robot_x, double robot_y,
+  double & goal_x, double & goal_y)
+{
+  if (!latest_costmap_) {
+    return false;
+  }
+
+  const auto & info = latest_costmap_->info;
+  const auto & data = latest_costmap_->data;
+  double resolution = info.resolution;
+  double origin_x = info.origin.position.x;
+  double origin_y = info.origin.position.y;
+
+  // Direction: robot → landmark
+  double dx = landmark_x - robot_x;
+  double dy = landmark_y - robot_y;
+  double dist = std::sqrt(dx * dx + dy * dy);
+  if (dist < 1e-6) {
+    goal_x = robot_x;
+    goal_y = robot_y;
+    return true;
+  }
+  double step_x = dx / dist * resolution;
+  double step_y = dy / dist * resolution;
+
+  // Ray-march from robot toward landmark — track last free cell (no early break)
+  int max_steps = static_cast<int>(dist / resolution) + 1;
+  double cx = robot_x;
+  double cy = robot_y;
+  bool found = false;
+
+  for (int i = 0; i <= max_steps; i++) {
+    int mx = static_cast<int>((cx - origin_x) / resolution);
+    int my = static_cast<int>((cy - origin_y) / resolution);
+
+    if (mx >= 0 && mx < static_cast<int>(info.width) &&
+        my >= 0 && my < static_cast<int>(info.height)) {
+      int idx = my * info.width + mx;
+      int8_t cost = data[idx];
+      if (cost >= 0 && cost < free_cell_threshold_) {
+        goal_x = cx;
+        goal_y = cy;
+        found = true;
+      }
+    }
+
+    cx += step_x;
+    cy += step_y;
+  }
+
+  if (found) {
+    RCLCPP_INFO(this->get_logger(),
+                "Found free cell at (%.2f, %.2f), %.1fm from landmark",
+                goal_x, goal_y,
+                std::sqrt(std::pow(goal_x - landmark_x, 2) + std::pow(goal_y - landmark_y, 2)));
+    return true;
+  }
+
+  // Fallback: robot position
+  goal_x = robot_x;
+  goal_y = robot_y;
+  RCLCPP_WARN(this->get_logger(), "No free cell found, falling back to robot position");
+  return true;
 }
 
 void TextNavBridgeNode::publishGoalMarker(
@@ -352,7 +427,7 @@ void TextNavBridgeNode::publishLandmarkMarkers()
     marker.action = visualization_msgs::msg::Marker::ADD;
     marker.pose.position.x = lm.x;
     marker.pose.position.y = lm.y;
-    marker.pose.position.z = lm.z;
+    marker.pose.position.z = 0.0;
     marker.pose.orientation.w = 1.0;
     marker.scale.x = landmark_cube_size_;
     marker.scale.y = landmark_cube_size_;
@@ -377,7 +452,7 @@ void TextNavBridgeNode::publishLandmarkMarkers()
     text_marker.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
     text_marker.action = visualization_msgs::msg::Marker::ADD;
     text_marker.pose = marker.pose;
-    text_marker.pose.position.z += text_z_offset_;
+    text_marker.pose.position.z = text_z_offset_;
     text_marker.text = lm.text;
     text_marker.scale.z = text_marker_scale_;
     text_marker.color.r = 1.0;

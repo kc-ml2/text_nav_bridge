@@ -56,56 +56,6 @@ def generate_launch_description():
         # Global parameter
         SetParameter(name='use_sim_time', value=use_sim_time),
 
-        # === Static TF for RealSense D435i ===
-        Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            name='static_tf_camera_infra1',
-            arguments=['0', '0', '0', '0', '0', '0', 'camera_link', 'camera_infra1_frame']
-        ),
-        Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            name='static_tf_aligned_depth',
-            arguments=['0', '0', '0', '0', '0', '0', 'camera_link', 'camera_aligned_depth_to_infra1_frame']
-        ),
-        Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            name='static_tf_infra1_optical',
-            arguments=['0', '0', '0', '-0.5', '0.5', '-0.5', '0.5', 'camera_aligned_depth_to_infra1_frame', 'camera_infra1_optical_frame']
-        ),
-        Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            name='static_tf_depth',
-            arguments=['0', '0', '0', '0', '0', '0', 'camera_link', 'camera_depth_frame']
-        ),
-        Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            name='static_tf_depth_optical',
-            arguments=['0', '0', '0', '-0.5', '0.5', '-0.5', '0.5', 'camera_depth_frame', 'camera_depth_optical_frame']
-        ),
-        Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            name='static_tf_gyro',
-            arguments=['-0.01602', '-0.03022', '0.0074', '0', '0', '0', 'camera_link', 'camera_gyro_frame']
-        ),
-        Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            name='static_tf_imu',
-            arguments=['0', '0', '0', '0', '0', '0', 'camera_gyro_frame', 'camera_imu_frame']
-        ),
-        Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            name='static_tf_imu_optical',
-            arguments=['0', '0', '0', '-0.5', '0.5', '-0.5', '0.5', 'camera_imu_frame', 'camera_imu_optical_frame']
-        ),
-
         # === IMU Filter ===
         Node(
             package='imu_filter_madgwick',
@@ -163,7 +113,6 @@ def generate_launch_description():
             parameters=[{
                 'landmark_file': landmark_file,
                 'match_threshold': 0.5,
-                'approach_distance': 1.5,
                 'robot_frame': 'camera_link',
                 'world_frame': 'map',
             }]

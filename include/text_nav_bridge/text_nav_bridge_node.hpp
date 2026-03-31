@@ -7,6 +7,7 @@
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <visualization_msgs/msg/marker.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
+#include <nav_msgs/msg/occupancy_grid.hpp>
 #include <nav2_msgs/action/navigate_to_pose.hpp>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
@@ -48,8 +49,17 @@ private:
                         const std::shared_ptr<const NavigateToPose::Feedback> feedback);
   void resultCallback(const GoalHandleNav::WrappedResult & result);
 
-  // Get robot position from TF
-  bool getRobotPosition(double & x, double & y);
+  // Get robot pose from TF
+  bool getRobotPose(double & x, double & y, double & yaw);
+
+  // Costmap callback
+  void costmapCallback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg);
+
+  // Find nearest free cell from landmark toward robot
+  bool findNearestFreeGoal(
+    double landmark_x, double landmark_y,
+    double robot_x, double robot_y,
+    double & goal_x, double & goal_y);
 
   // Publish goal marker for RViz
   void publishGoalMarker(const geometry_msgs::msg::PoseStamped & goal_pose,
@@ -69,6 +79,10 @@ private:
   rclcpp_action::Client<NavigateToPose>::SharedPtr nav_client_;
   GoalHandleNav::SharedPtr current_goal_handle_;
 
+  // Costmap
+  rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr costmap_sub_;
+  nav_msgs::msg::OccupancyGrid::SharedPtr latest_costmap_;
+
   // TF
   std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
   std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
@@ -79,7 +93,6 @@ private:
   // Parameters
   std::string landmark_file_;
   double match_threshold_;
-  double approach_distance_;
   std::string robot_frame_;
   std::string world_frame_;
 
@@ -89,6 +102,7 @@ private:
   const std::string status_topic_ = "/text_nav/status";
   const std::string goal_marker_topic_ = "/text_nav/goal_marker";
   const std::string landmark_marker_topic_ = "/textmap/markers";
+  const std::string costmap_topic_ = "/map";
 
   // Timing constants
   static constexpr double marker_publish_rate_sec_ = 1.0;
@@ -103,6 +117,7 @@ private:
 
   // Marker constants
   static constexpr double similarity_epsilon_ = 0.01;
+  static constexpr int8_t free_cell_threshold_ = 50;  // costmap cell value below this = free
   static constexpr double goal_marker_scale_x_ = 0.5;
   static constexpr double goal_marker_scale_yz_ = 0.1;
   static constexpr double landmark_cube_size_ = 0.3;
