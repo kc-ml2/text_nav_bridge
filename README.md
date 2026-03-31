@@ -24,13 +24,17 @@ source install/setup.bash
 
 ## Usage (Phase 2: Navigation)
 
-Requires Phase 1 outputs: `rtabmap.db` (map) and `landmarks.yaml` (text landmarks).
+Requires Phase 1 outputs: `rtabmap_db/<bag_name>.db` (map) and `landmarks/<bag_name>.yaml` (text landmarks).
 
 ### 1. Launch navigation stack
 
 ```bash
-ros2 launch text_nav_bridge text_nav.launch.py landmark_file:=/path/to/landmarks.yaml
+ros2 launch text_nav_bridge text_nav.launch.py bag_name:=rosbag2_2026_01_08-15_03_00
 ```
+
+`bag_name` 하나로 landmark 파일과 rtabmap DB가 자동으로 설정됩니다:
+- `src/text_nav_bridge/landmarks/<bag_name>.yaml`
+- `src/text_nav_bridge/rtabmap_db/<bag_name>.db`
 
 ### 2. Play rosbag or run real camera
 
@@ -43,10 +47,10 @@ ros2 launch rtabmap_ros realsense_infra_for_record.launch.py
 ```
 
 This launches:
-- Static TF (RealSense D435i)
+- Static TF (RealSense D455)
 - IMU filter
 - RGBD odometry
-- RTAB-Map localization mode (uses existing `rtabmap.db`)
+- RTAB-Map localization mode (uses `rtabmap_db/<bag_name>.db`)
 - Nav2 navigation stack
 - text_nav_bridge node
 - RViz
@@ -78,7 +82,7 @@ data: "SUCCESS: Navigation completed"
 
 | Argument | Default | Description |
 |----------|---------|-------------|
-| `landmark_file` | (required) | Path to landmarks.yaml |
+| `bag_name` | (required) | Rosbag name (e.g. `rosbag2_2026_01_08-15_03_00`) |
 | `use_sim_time` | `true` | Use simulation time (true for rosbag) |
 
 ## Node Parameters
