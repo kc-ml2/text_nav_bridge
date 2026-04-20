@@ -1,25 +1,37 @@
 #!/usr/bin/env python3
-"""
-TextNav Launch File (Phase 2: Navigation)
-Runs RTAB-Map localization + Nav2 navigation + text_nav_bridge
-"""
+"""TextNav launch file (Phase 2) — rtabmap localization + Nav2 + text_nav_bridge."""
 
+import os
+
+from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node, SetParameter
-from ament_index_python.packages import get_package_share_directory
-import os
+
+
+def _default_data_dir():
+    # text_nav_bridge is installed under <workspace>/install/text_nav_bridge/share/...
+    # but landmark YAML files and rtabmap DBs live in the source tree at
+    # <workspace>/src/text_nav_bridge. This resolves that path from the share dir
+    # for the standard colcon layout; override via the 'data_dir' launch argument.
+    share_dir = get_package_share_directory('text_nav_bridge')
+    marker = os.sep + 'install' + os.sep
+    workspace_root = share_dir.split(marker)[0] if marker in share_dir else share_dir
+    return os.path.join(workspace_root, 'src', 'text_nav_bridge')
 
 
 def launch_setup(context):
     bag_name = LaunchConfiguration('bag_name').perform(context)
     use_sim_time = LaunchConfiguration('use_sim_time').perform(context)
+    data_dir = LaunchConfiguration('data_dir').perform(context)
+    match_threshold = LaunchConfiguration('match_threshold').perform(context)
+    robot_frame = LaunchConfiguration('robot_frame').perform(context)
+    world_frame = LaunchConfiguration('world_frame').perform(context)
 
     text_nav_bridge_dir = get_package_share_directory('text_nav_bridge')
     nav2_bringup_dir = get_package_share_directory('nav2_bringup')
-    data_dir = os.path.join(os.path.expanduser('~'), 'ros2_ws', 'src', 'text_nav_bridge')
 
     landmark_file = os.path.join(data_dir, 'landmarks', f'{bag_name}.yaml')
     database_path = os.path.join(data_dir, 'rtabmap_db', f'{bag_name}.db')
@@ -45,10 +57,9 @@ def launch_setup(context):
 
     return [
 
-        # Global parameter
         SetParameter(name='use_sim_time', value=(use_sim_time.lower() == 'true')),
 
-        # === Static TF for RealSense D455 ===
+        # Static TF for RealSense D455
         Node(
             package='tf2_ros',
             executable='static_transform_publisher',
@@ -59,13 +70,17 @@ def launch_setup(context):
             package='tf2_ros',
             executable='static_transform_publisher',
             name='static_tf_aligned_depth',
-            arguments=['0', '0', '0', '0', '0', '0', 'camera_link', 'camera_aligned_depth_to_infra1_frame']
+            arguments=[
+                '0', '0', '0', '0', '0', '0',
+                'camera_link', 'camera_aligned_depth_to_infra1_frame']
         ),
         Node(
             package='tf2_ros',
             executable='static_transform_publisher',
             name='static_tf_infra1_optical',
-            arguments=['0', '0', '0', '-0.5', '0.5', '-0.5', '0.5', 'camera_aligned_depth_to_infra1_frame', 'camera_infra1_optical_frame']
+            arguments=[
+                '0', '0', '0', '-0.5', '0.5', '-0.5', '0.5',
+                'camera_aligned_depth_to_infra1_frame', 'camera_infra1_optical_frame']
         ),
         Node(
             package='tf2_ros',
@@ -77,13 +92,17 @@ def launch_setup(context):
             package='tf2_ros',
             executable='static_transform_publisher',
             name='static_tf_depth_optical',
-            arguments=['0', '0', '0', '-0.5', '0.5', '-0.5', '0.5', 'camera_depth_frame', 'camera_depth_optical_frame']
+            arguments=[
+                '0', '0', '0', '-0.5', '0.5', '-0.5', '0.5',
+                'camera_depth_frame', 'camera_depth_optical_frame']
         ),
         Node(
             package='tf2_ros',
             executable='static_transform_publisher',
             name='static_tf_gyro',
-            arguments=['-0.01602', '-0.03022', '0.0074', '0', '0', '0', 'camera_link', 'camera_gyro_frame']
+            arguments=[
+                '-0.01602', '-0.03022', '0.0074', '0', '0', '0',
+                'camera_link', 'camera_gyro_frame']
         ),
         Node(
             package='tf2_ros',
@@ -95,10 +114,12 @@ def launch_setup(context):
             package='tf2_ros',
             executable='static_transform_publisher',
             name='static_tf_imu_optical',
-            arguments=['0', '0', '0', '-0.5', '0.5', '-0.5', '0.5', 'camera_imu_frame', 'camera_imu_optical_frame']
+            arguments=[
+                '0', '0', '0', '-0.5', '0.5', '-0.5', '0.5',
+                'camera_imu_frame', 'camera_imu_optical_frame']
         ),
 
-        # === IMU Filter ===
+        # IMU Filter
         Node(
             package='imu_filter_madgwick',
             executable='imu_filter_madgwick_node',
@@ -112,7 +133,7 @@ def launch_setup(context):
             remappings=[('imu/data_raw', '/camera/imu')]
         ),
 
-        # === RGBD Odometry (odom → camera_link TF) ===
+        # RGBD Odometry (odom -> camera_link TF)
         Node(
             package='rtabmap_odom',
             executable='rgbd_odometry',
@@ -122,7 +143,7 @@ def launch_setup(context):
             remappings=rtabmap_remappings
         ),
 
-        # === RTAB-Map Localization Mode (map → odom TF + /map) ===
+        # RTAB-Map Localization Mode (map -> odom TF + /map).
         # No '-d' argument = localization mode (uses existing database)
         Node(
             package='rtabmap_slam',
@@ -133,7 +154,7 @@ def launch_setup(context):
             remappings=rtabmap_remappings
         ),
 
-        # === Nav2 Navigation Stack ===
+        # Nav2 Navigation Stack
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
                 os.path.join(nav2_bringup_dir, 'launch', 'navigation_launch.py')
@@ -146,7 +167,7 @@ def launch_setup(context):
             }.items()
         ),
 
-        # === Text Navigation Bridge ===
+        # Text Navigation Bridge
         Node(
             package='text_nav_bridge',
             executable='text_nav_bridge_node',
@@ -154,13 +175,13 @@ def launch_setup(context):
             output='screen',
             parameters=[{
                 'landmark_file': landmark_file,
-                'match_threshold': 0.5,
-                'robot_frame': 'camera_link',
-                'world_frame': 'map',
+                'match_threshold': float(match_threshold),
+                'robot_frame': robot_frame,
+                'world_frame': world_frame,
             }]
         ),
 
-        # === RViz ===
+        # RViz
         Node(
             package='rviz2',
             executable='rviz2',
@@ -182,6 +203,26 @@ def generate_launch_description():
             'use_sim_time',
             default_value='true',
             description='Use simulation time (true for rosbag, false for real camera)'
+        ),
+        DeclareLaunchArgument(
+            'data_dir',
+            default_value=_default_data_dir(),
+            description='Directory containing landmarks/ and rtabmap_db/ subdirectories'
+        ),
+        DeclareLaunchArgument(
+            'match_threshold',
+            default_value='0.5',
+            description='Text similarity threshold for landmark matching (0~1)'
+        ),
+        DeclareLaunchArgument(
+            'robot_frame',
+            default_value='camera_link',
+            description='Robot base frame id'
+        ),
+        DeclareLaunchArgument(
+            'world_frame',
+            default_value='map',
+            description='World/map frame id'
         ),
         OpaqueFunction(function=launch_setup),
     ])

@@ -32,7 +32,7 @@ Requires Phase 1 outputs: `rtabmap_db/<bag_name>.db` (map) and `landmarks/<bag_n
 ros2 launch text_nav_bridge text_nav.launch.py bag_name:=rosbag2_2026_01_08-15_03_00
 ```
 
-`bag_name` 하나로 landmark 파일과 rtabmap DB가 자동으로 설정됩니다:
+A single `bag_name` argument resolves both the landmark file and rtabmap DB:
 - `src/text_nav_bridge/landmarks/<bag_name>.yaml`
 - `src/text_nav_bridge/rtabmap_db/<bag_name>.db`
 
@@ -63,7 +63,7 @@ ros2 topic pub --once /text_nav/command std_msgs/msg/String "data: 'restroom'"
 
 The node will:
 1. Find the best matching landmark from `landmarks.yaml`
-2. Compute a goal point `approach_distance` meters in front of the landmark
+2. Ray-march along the robot-to-landmark line on the Nav2 `/map` costmap and pick the last free cell as the navigation goal
 3. Send a `NavigateToPose` goal to Nav2
 
 ### 4. Monitor status
@@ -84,16 +84,19 @@ data: "SUCCESS: Navigation completed"
 |----------|---------|-------------|
 | `bag_name` | (required) | Rosbag name (e.g. `rosbag2_2026_01_08-15_03_00`) |
 | `use_sim_time` | `true` | Use simulation time (true for rosbag) |
+| `data_dir` | resolved from install share | Directory containing `landmarks/` and `rtabmap_db/` |
+| `match_threshold` | `0.5` | Text similarity threshold (0~1) |
+| `robot_frame` | `camera_link` | Robot base frame id |
+| `world_frame` | `map` | World/map frame id |
 
 ## Node Parameters
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `landmark_file` | (required) | Path to landmarks.yaml |
-| `match_threshold` | 0.5 | Text similarity threshold (0~1) |
-| `approach_distance` | 1.5 | Stop this many meters before the landmark |
-| `robot_frame` | `camera_link` | Robot base frame |
-| `world_frame` | `map` | World coordinate frame |
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `landmark_file` | string | (required) | Path to landmarks.yaml |
+| `match_threshold` | double | `0.5` | Text similarity threshold (0~1) |
+| `robot_frame` | string | `camera_link` | Robot base frame |
+| `world_frame` | string | `map` | World coordinate frame |
 
 ## Topics
 
@@ -101,13 +104,14 @@ data: "SUCCESS: Navigation completed"
 | Topic | Type | Description |
 |-------|------|-------------|
 | `/text_nav/command` | std_msgs/String | Text command to navigate to |
-| `/textmap/markers` | visualization_msgs/MarkerArray | Landmark markers for visualization |
+| `/map` | nav_msgs/OccupancyGrid | Costmap used for ray-march goal selection (transient_local) |
 
 ### Publications
 | Topic | Type | Description |
 |-------|------|-------------|
 | `/text_nav/status` | std_msgs/String | Navigation status updates |
 | `/text_nav/goal_marker` | visualization_msgs/Marker | Goal visualization in RViz |
+| `/textmap/markers` | visualization_msgs/MarkerArray | Loaded landmarks republished for RViz (1 Hz) |
 
 ## RViz Displays
 

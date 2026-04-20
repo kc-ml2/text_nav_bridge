@@ -5,7 +5,6 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
@@ -20,13 +19,14 @@ find_package(tf2_geometry_msgs REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(textmap REQUIRED)
 
-# Include directories
-include_directories(include)
-
-# text_nav_bridge node
 add_executable(text_nav_bridge_node
   src/text_nav_bridge_node.cpp
   src/main.cpp
+)
+
+target_include_directories(text_nav_bridge_node PRIVATE
+  include
+  ${textmap_INCLUDE_DIRS}
 )
 
 ament_target_dependencies(text_nav_bridge_node
