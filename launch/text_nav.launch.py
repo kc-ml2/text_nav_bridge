@@ -3,12 +3,40 @@
 
 import os
 
+import yaml
+
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node, SetParameter
+
+
+def _load_static_tf_nodes(yaml_path, use_sim_time):
+    """Spawn static_transform_publisher nodes from a YAML descriptor.
+
+    Empty / missing path yields no nodes so users can disable injection
+    with ``static_tfs_file:=''`` or point the argument at their own file.
+    rotation length 3 -> rpy (radians); length 4 -> quaternion (x, y, z, w).
+    """
+    if not yaml_path or not os.path.isfile(yaml_path):
+        return []
+    with open(yaml_path, 'r') as f:
+        doc = yaml.safe_load(f) or {}
+    nodes = []
+    for entry in doc.get('static_transforms', []):
+        translation = [str(v) for v in entry['translation']]
+        rotation = [str(v) for v in entry['rotation']]
+        args = translation + rotation + [entry['parent'], entry['child']]
+        nodes.append(Node(
+            package='tf2_ros',
+            executable='static_transform_publisher',
+            name=f"static_tf_{entry['child']}",
+            arguments=args,
+            parameters=[{'use_sim_time': use_sim_time}],
+        ))
+    return nodes
 
 
 def _default_data_dir():
@@ -29,6 +57,7 @@ def launch_setup(context):
     match_threshold = LaunchConfiguration('match_threshold').perform(context)
     robot_frame = LaunchConfiguration('robot_frame').perform(context)
     world_frame = LaunchConfiguration('world_frame').perform(context)
+    static_tfs_file = LaunchConfiguration('static_tfs_file').perform(context)
 
     text_nav_bridge_dir = get_package_share_directory('text_nav_bridge')
     nav2_bringup_dir = get_package_share_directory('nav2_bringup')
@@ -36,6 +65,9 @@ def launch_setup(context):
     landmark_file = os.path.join(data_dir, 'landmarks', f'{bag_name}.yaml')
     database_path = os.path.join(data_dir, 'rtabmap_db', f'{bag_name}.db')
     nav2_params_file = os.path.join(text_nav_bridge_dir, 'config', 'nav2_params.yaml')
+
+    static_tf_nodes = _load_static_tf_nodes(
+        static_tfs_file, use_sim_time.lower() == 'true')
 
     rtabmap_parameters = [{
         'frame_id': 'camera_link',
@@ -59,65 +91,8 @@ def launch_setup(context):
 
         SetParameter(name='use_sim_time', value=(use_sim_time.lower() == 'true')),
 
-        # Static TF for RealSense D455
-        Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            name='static_tf_camera_infra1',
-            arguments=['0', '0', '0', '0', '0', '0', 'camera_link', 'camera_infra1_frame']
-        ),
-        Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            name='static_tf_aligned_depth',
-            arguments=[
-                '0', '0', '0', '0', '0', '0',
-                'camera_link', 'camera_aligned_depth_to_infra1_frame']
-        ),
-        Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            name='static_tf_infra1_optical',
-            arguments=[
-                '0', '0', '0', '-0.5', '0.5', '-0.5', '0.5',
-                'camera_aligned_depth_to_infra1_frame', 'camera_infra1_optical_frame']
-        ),
-        Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            name='static_tf_depth',
-            arguments=['0', '0', '0', '0', '0', '0', 'camera_link', 'camera_depth_frame']
-        ),
-        Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            name='static_tf_depth_optical',
-            arguments=[
-                '0', '0', '0', '-0.5', '0.5', '-0.5', '0.5',
-                'camera_depth_frame', 'camera_depth_optical_frame']
-        ),
-        Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            name='static_tf_gyro',
-            arguments=[
-                '-0.01602', '-0.03022', '0.0074', '0', '0', '0',
-                'camera_link', 'camera_gyro_frame']
-        ),
-        Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            name='static_tf_imu',
-            arguments=['0', '0', '0', '0', '0', '0', 'camera_gyro_frame', 'camera_imu_frame']
-        ),
-        Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            name='static_tf_imu_optical',
-            arguments=[
-                '0', '0', '0', '-0.5', '0.5', '-0.5', '0.5',
-                'camera_imu_frame', 'camera_imu_optical_frame']
-        ),
+        # Static TFs loaded from YAML if 'static_tfs_file' was provided.
+        *static_tf_nodes,
 
         # IMU Filter
         Node(
@@ -223,6 +198,13 @@ def generate_launch_description():
             'world_frame',
             default_value='map',
             description='World/map frame id'
+        ),
+        DeclareLaunchArgument(
+            'static_tfs_file',
+            default_value=os.path.join(
+                get_package_share_directory('text_nav_bridge'),
+                'config', 'realsense_d455_tfs.yaml'),
+            description='YAML file with static_transforms (empty string disables injection)'
         ),
         OpaqueFunction(function=launch_setup),
     ])

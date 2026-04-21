@@ -1,0 +1,49 @@
+# Static TF tree for RealSense D455 (camera_link -> infra1/depth/imu/gyro).
+# Consumed by launch files that call _load_static_tf_nodes(static_tfs_file, ...).
+# rotation length: 3 = rpy (radians), 4 = quaternion (x, y, z, w).
+#
+# Replace or swap via launch argument:
+#   ros2 launch text_nav_bridge text_nav.launch.py static_tfs_file:=/path/to/your.yaml
+# Pass an empty string to disable static TF injection entirely:
+#   ros2 launch text_nav_bridge text_nav.launch.py static_tfs_file:=''
+
+static_transforms:
+  - parent: camera_link
+    child: camera_infra1_frame
+    translation: [0.0, 0.0, 0.0]
+    rotation: [0.0, 0.0, 0.0]
+
+  - parent: camera_link
+    child: camera_aligned_depth_to_infra1_frame
+    translation: [0.0, 0.0, 0.0]
+    rotation: [0.0, 0.0, 0.0]
+
+  - parent: camera_aligned_depth_to_infra1_frame
+    child: camera_infra1_optical_frame
+    translation: [0.0, 0.0, 0.0]
+    rotation: [-0.5, 0.5, -0.5, 0.5]
+
+  - parent: camera_link
+    child: camera_depth_frame
+    translation: [0.0, 0.0, 0.0]
+    rotation: [0.0, 0.0, 0.0]
+
+  - parent: camera_depth_frame
+    child: camera_depth_optical_frame
+    translation: [0.0, 0.0, 0.0]
+    rotation: [-0.5, 0.5, -0.5, 0.5]
+
+  - parent: camera_link
+    child: camera_gyro_frame
+    translation: [-0.01602, -0.03022, 0.0074]
+    rotation: [0.0, 0.0, 0.0]
+
+  - parent: camera_gyro_frame
+    child: camera_imu_frame
+    translation: [0.0, 0.0, 0.0]
+    rotation: [0.0, 0.0, 0.0]
+
+  - parent: camera_imu_frame
+    child: camera_imu_optical_frame
+    translation: [0.0, 0.0, 0.0]
+    rotation: [-0.5, 0.5, -0.5, 0.5]

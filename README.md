@@ -4,14 +4,14 @@ Text-command-driven robot navigation for ROS 2. Reads text landmarks generated b
 
 ## Dependencies
 
-- ROS 2 Humble
+- ROS 2 (tested on Humble; source compiles on Iron/Jazzy/Kilted/Rolling)
 - navigation2
 - rtabmap_ros
 - [textmap](../textmap/) (provides shared `text_similarity.hpp`)
 - yaml-cpp, tf2, rclcpp_action
 
 ```bash
-sudo apt install ros-humble-navigation2 ros-humble-nav2-bringup ros-humble-rtabmap-ros
+sudo apt install ros-${ROS_DISTRO}-navigation2 ros-${ROS_DISTRO}-nav2-bringup ros-${ROS_DISTRO}-rtabmap-ros
 ```
 
 ## Build
@@ -88,6 +88,20 @@ data: "SUCCESS: Navigation completed"
 | `match_threshold` | `0.5` | Text similarity threshold (0~1) |
 | `robot_frame` | `camera_link` | Robot base frame id |
 | `world_frame` | `map` | World/map frame id |
+| `static_tfs_file` | `<pkg>/config/realsense_d455_tfs.yaml` | YAML describing static TFs to publish. Pass empty string (`static_tfs_file:=''`) when the bag or driver already supplies `/tf_static`, or point at your own YAML. |
+
+### Static TF YAML schema
+
+```yaml
+static_transforms:
+  - parent: camera_link
+    child:  camera_infra1_frame
+    translation: [x, y, z]         # meters
+    rotation:    [r, p, y]         # radians (3 values)  OR
+    # rotation:  [qx, qy, qz, qw]  # quaternion (4 values)
+```
+
+The launch file spawns one `tf2_ros/static_transform_publisher` per entry. Missing or empty `static_tfs_file` simply injects no static TFs — rely on the bag's `/tf_static` or the camera driver instead.
 
 ## Node Parameters
 

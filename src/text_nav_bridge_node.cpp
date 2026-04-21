@@ -8,7 +8,7 @@
 
 #include "text_nav_bridge/text_nav_bridge_node.hpp"
 
-#include <tf2/utils.h>
+#include <tf2/utils.hpp>
 #include <yaml-cpp/yaml.h>
 
 #include <algorithm>
