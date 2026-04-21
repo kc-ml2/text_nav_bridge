@@ -46,14 +46,7 @@ ros2 bag play <your_bagfile> --clock
 ros2 launch rtabmap_ros realsense_infra_for_record.launch.py
 ```
 
-This launches:
-- Static TF (RealSense D455)
-- IMU filter
-- RGBD odometry
-- RTAB-Map localization mode (uses `rtabmap_db/<bag_name>.db`)
-- Nav2 navigation stack
-- text_nav_bridge node
-- RViz
+Spawns RTAB-Map localization (loading the bag's `.db`) + Nav2 + text_nav_bridge + RViz.
 
 ### 3. Send a text command
 
@@ -88,29 +81,7 @@ data: "SUCCESS: Navigation completed"
 | `match_threshold` | `0.5` | Text similarity threshold (0~1) |
 | `robot_frame` | `camera_link` | Robot base frame id |
 | `world_frame` | `map` | World/map frame id |
-| `static_tfs_file` | `<pkg>/config/realsense_d455_tfs.yaml` | YAML describing static TFs to publish. Pass empty string (`static_tfs_file:=''`) when the bag or driver already supplies `/tf_static`, or point at your own YAML. |
-
-### Static TF YAML schema
-
-```yaml
-static_transforms:
-  - parent: camera_link
-    child:  camera_infra1_frame
-    translation: [x, y, z]         # meters
-    rotation:    [r, p, y]         # radians (3 values)  OR
-    # rotation:  [qx, qy, qz, qw]  # quaternion (4 values)
-```
-
-The launch file spawns one `tf2_ros/static_transform_publisher` per entry. Missing or empty `static_tfs_file` simply injects no static TFs — rely on the bag's `/tf_static` or the camera driver instead.
-
-## Node Parameters
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `landmark_file` | string | (required) | Path to landmarks.yaml |
-| `match_threshold` | double | `0.5` | Text similarity threshold (0~1) |
-| `robot_frame` | string | `camera_link` | Robot base frame |
-| `world_frame` | string | `map` | World coordinate frame |
+| `static_tfs_file` | `<pkg>/config/realsense_d455_tfs.yaml` | YAML of static TFs to inject (see [realsense_d455_tfs.yaml](config/realsense_d455_tfs.yaml) for the schema). Pass `''` when `/tf_static` is already provided by the bag or camera driver. |
 
 ## Topics
 
@@ -127,19 +98,7 @@ The launch file spawns one `tf2_ros/static_transform_publisher` per entry. Missi
 | `/text_nav/goal_marker` | visualization_msgs/Marker | Goal visualization in RViz |
 | `/textmap/markers` | visualization_msgs/MarkerArray | Loaded landmarks republished for RViz (1 Hz) |
 
-## RViz Displays
-
-The provided `text_nav.rviz` config includes:
-
-| Display | Topic | Description |
-|---------|-------|-------------|
-| Map | `/map` | 2D occupancy grid |
-| TF | — | Robot position |
-| Global Plan | `/plan` | Path to goal |
-| Local Plan | `/local_plan` | Obstacle-avoidance path |
-| Local Costmap | `/local_costmap/costmap` | Cost map around robot |
-| Nav Goal Marker | `/text_nav/goal_marker` | Goal arrow marker |
-| Text Landmarks | `/textmap/markers` | Text landmark labels |
+RViz config: [`rviz/text_nav.rviz`](rviz/text_nav.rviz).
 
 ## License
 
