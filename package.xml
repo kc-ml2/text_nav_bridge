@@ -18,7 +18,6 @@
   <depend>tf2</depend>
   <depend>tf2_ros</depend>
   <depend>tf2_geometry_msgs</depend>
-  <depend>textmap</depend>
   <depend>yaml-cpp</depend>
 
   <exec_depend>nav2_bringup</exec_depend>

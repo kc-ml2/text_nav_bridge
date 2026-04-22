@@ -7,7 +7,6 @@ Text-command-driven robot navigation for ROS 2. Reads text landmarks generated b
 - ROS 2 (tested on Humble; source compiles on Iron/Jazzy/Kilted/Rolling)
 - navigation2
 - rtabmap_ros
-- [textmap](../textmap/) (provides shared `text_similarity.hpp`)
 - yaml-cpp, tf2, rclcpp_action
 
 ```bash

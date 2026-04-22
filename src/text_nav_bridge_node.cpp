@@ -21,7 +21,7 @@
 
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
-#include <textmap/text_similarity.hpp>
+#include "text_nav_bridge/text_similarity.hpp"
 
 namespace text_nav_bridge
 {

@@ -17,7 +17,6 @@ find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(yaml-cpp REQUIRED)
-find_package(textmap REQUIRED)
 
 add_executable(text_nav_bridge_node
   src/text_nav_bridge_node.cpp
@@ -26,7 +25,6 @@ add_executable(text_nav_bridge_node
 
 target_include_directories(text_nav_bridge_node PRIVATE
   include
-  ${textmap_INCLUDE_DIRS}
 )
 
 ament_target_dependencies(text_nav_bridge_node
@@ -40,7 +38,6 @@ ament_target_dependencies(text_nav_bridge_node
   tf2
   tf2_ros
   tf2_geometry_msgs
-  textmap
 )
 
 target_link_libraries(text_nav_bridge_node yaml-cpp)
