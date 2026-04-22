@@ -38,6 +38,18 @@ A single `bag_name` argument resolves both the landmark file and rtabmap DB:
 - `src/text_nav_bridge/landmarks/<bag_name>.yaml`
 - `src/text_nav_bridge/rtabmap_db/<bag_name>.db`
 
+#### 2. Play rosbag or run real camera
+
+```bash
+# Rosbag
+ros2 bag play <your_bagfile> --clock
+
+# Or real camera
+ros2 launch rtabmap_ros realsense_infra_for_record.launch.py
+```
+
+Spawns RTAB-Map localization (loading the bag's `.db`) + Nav2 + text_nav_bridge + RViz.
+
 ### Gazebo simulation (AMCL localization)
 
 Run the Gazebo world (see [text_nav_sim](../text_nav_sim/)) in another
@@ -50,21 +62,11 @@ ros2 launch text_nav_bridge text_nav_sim.launch.py \
 ```
 
 Spawns map_server + AMCL + Nav2 + text_nav_bridge + RViz using
-`config/nav2_sim_params.yaml` (tuned for `base_footprint`).
+[`config/nav2_sim_params.yaml`](config/nav2_sim_params.yaml) (tuned for
+`base_footprint`). RViz config:
+[`rviz/text_nav_sim.rviz`](rviz/text_nav_sim.rviz).
 
-### 2. Play rosbag or run real camera
-
-```bash
-# Rosbag
-ros2 bag play <your_bagfile> --clock
-
-# Or real camera
-ros2 launch rtabmap_ros realsense_infra_for_record.launch.py
-```
-
-Spawns RTAB-Map localization (loading the bag's `.db`) + Nav2 + text_nav_bridge + RViz.
-
-### 3. Send a text command
+### Send a text command (either launch)
 
 ```bash
 ros2 topic pub --once /text_nav/command std_msgs/msg/String "data: 'restroom'"
@@ -75,7 +77,7 @@ The node will:
 2. Ray-march along the robot-to-landmark line on the Nav2 `/map` costmap and pick the last free cell as the navigation goal
 3. Send a `NavigateToPose` goal to Nav2
 
-### 4. Monitor status
+### Monitor status
 
 ```bash
 ros2 topic echo /text_nav/status
@@ -89,6 +91,8 @@ data: "SUCCESS: Navigation completed"
 
 ## Launch Arguments
 
+### `text_nav_rtabmap.launch.py`
+
 | Argument | Default | Description |
 |----------|---------|-------------|
 | `bag_name` | (required) | Rosbag name (e.g. `rosbag2_2026_01_08-15_03_00`) |
@@ -98,6 +102,17 @@ data: "SUCCESS: Navigation completed"
 | `robot_frame` | `camera_link` | Robot base frame id |
 | `world_frame` | `map` | World/map frame id |
 | `static_tfs_file` | `<pkg>/config/realsense_d455_tfs.yaml` | YAML of static TFs to inject (see [realsense_d455_tfs.yaml](config/realsense_d455_tfs.yaml) for the schema). Pass `''` when `/tf_static` is already provided by the bag or camera driver. |
+
+### `text_nav_sim.launch.py`
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `use_sim_time` | `true` | Use Gazebo clock |
+| `landmark_file` | (required) | Path to `landmarks.yaml` from Phase 1 |
+| `map_yaml_file` | (required) | Path to `map.yaml` from `map_saver_cli` |
+| `robot_frame` | `base_footprint` | Robot base frame id (Gazebo waffle default) |
+| `world_frame` | `map` | World/map frame id |
+| `match_threshold` | `0.5` | Text similarity threshold (0~1) |
 
 ## Topics
 
@@ -114,7 +129,8 @@ data: "SUCCESS: Navigation completed"
 | `/text_nav/goal_marker` | visualization_msgs/Marker | Goal visualization in RViz |
 | `/textmap/markers` | visualization_msgs/MarkerArray | Loaded landmarks republished for RViz (1 Hz) |
 
-RViz config: [`rviz/text_nav.rviz`](rviz/text_nav.rviz).
+RViz configs: [`rviz/text_nav.rviz`](rviz/text_nav.rviz) (rtabmap launch),
+[`rviz/text_nav_sim.rviz`](rviz/text_nav_sim.rviz) (sim launch).
 
 ## License
 
