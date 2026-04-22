@@ -21,6 +21,8 @@ def generate_launch_description():
     use_sim_time = LaunchConfiguration('use_sim_time')
     landmark_file = LaunchConfiguration('landmark_file')
     map_yaml_file = LaunchConfiguration('map_yaml_file')
+    robot_frame = LaunchConfiguration('robot_frame')
+    world_frame = LaunchConfiguration('world_frame')
     match_threshold = ParameterValue(
         LaunchConfiguration('match_threshold'), value_type=float)
 
@@ -35,6 +37,8 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'map_yaml_file',
             description='Path to map.yaml produced by nav2_map_server map_saver_cli'),
+        DeclareLaunchArgument('robot_frame', default_value='base_footprint'),
+        DeclareLaunchArgument('world_frame', default_value='map'),
         DeclareLaunchArgument('match_threshold', default_value='0.5'),
 
         Node(
@@ -83,8 +87,8 @@ def generate_launch_description():
             parameters=[{
                 'use_sim_time': use_sim_time,
                 'landmark_file': landmark_file,
-                'robot_frame': 'base_footprint',
-                'world_frame': 'map',
+                'robot_frame': robot_frame,
+                'world_frame': world_frame,
                 'match_threshold': match_threshold,
             }],
             output='screen',
