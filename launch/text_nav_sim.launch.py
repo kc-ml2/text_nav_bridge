@@ -1,7 +1,7 @@
 """Simulation navigation pipeline: map_server + AMCL + Nav2 + text_nav_bridge + RViz.
 
 Requires a Gazebo simulation (text_nav_sim/simulation.launch.py) to be running.
-Parallel to text_nav.launch.py for real hardware (which uses rtabmap localization).
+Parallel to text_nav_rtabmap.launch.py for real hardware (which uses rtabmap localization).
 """
 import os
 

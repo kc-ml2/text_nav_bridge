@@ -31,7 +31,7 @@ Requires Phase 1 outputs: `rtabmap_db/<bag_name>.db` (map) and `landmarks/<bag_n
 #### 1. Launch navigation stack
 
 ```bash
-ros2 launch text_nav_bridge text_nav.launch.py bag_name:=rosbag2_2026_01_08-15_03_00
+ros2 launch text_nav_bridge text_nav_rtabmap.launch.py bag_name:=rosbag2_2026_01_08-15_03_00
 ```
 
 A single `bag_name` argument resolves both the landmark file and rtabmap DB:

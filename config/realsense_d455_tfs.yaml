@@ -3,9 +3,9 @@
 # rotation length: 3 = rpy (radians), 4 = quaternion (x, y, z, w).
 #
 # Replace or swap via launch argument:
-#   ros2 launch text_nav_bridge text_nav.launch.py static_tfs_file:=/path/to/your.yaml
+#   ros2 launch text_nav_bridge text_nav_rtabmap.launch.py static_tfs_file:=/path/to/your.yaml
 # Pass an empty string to disable static TF injection entirely:
-#   ros2 launch text_nav_bridge text_nav.launch.py static_tfs_file:=''
+#   ros2 launch text_nav_bridge text_nav_rtabmap.launch.py static_tfs_file:=''
 
 static_transforms:
   - parent: camera_link
