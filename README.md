@@ -4,7 +4,7 @@ Text-command-driven robot navigation for ROS 2. Reads text landmarks generated b
 
 ## Dependencies
 
-- ROS 2 (tested on Humble; source compiles on Iron/Jazzy/Kilted/Rolling)
+- ROS 2 Humble / Jazzy / Kilted
 - navigation2
 - rtabmap_ros
 - yaml-cpp, tf2, rclcpp_action
