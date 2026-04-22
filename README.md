@@ -24,9 +24,11 @@ source install/setup.bash
 
 ## Usage (Phase 2: Navigation)
 
+### Real hardware / rosbag (rtabmap localization)
+
 Requires Phase 1 outputs: `rtabmap_db/<bag_name>.db` (map) and `landmarks/<bag_name>.yaml` (text landmarks).
 
-### 1. Launch navigation stack
+#### 1. Launch navigation stack
 
 ```bash
 ros2 launch text_nav_bridge text_nav.launch.py bag_name:=rosbag2_2026_01_08-15_03_00
@@ -35,6 +37,20 @@ ros2 launch text_nav_bridge text_nav.launch.py bag_name:=rosbag2_2026_01_08-15_0
 A single `bag_name` argument resolves both the landmark file and rtabmap DB:
 - `src/text_nav_bridge/landmarks/<bag_name>.yaml`
 - `src/text_nav_bridge/rtabmap_db/<bag_name>.db`
+
+### Gazebo simulation (AMCL localization)
+
+Run the Gazebo world (see [text_nav_sim](../text_nav_sim/)) in another
+terminal first, then:
+
+```bash
+ros2 launch text_nav_bridge text_nav_sim.launch.py \
+  landmark_file:=~/map/<DIR>/landmarks.yaml \
+  map_yaml_file:=~/map/<DIR>/map.yaml
+```
+
+Spawns map_server + AMCL + Nav2 + text_nav_bridge + RViz using
+`config/nav2_sim_params.yaml` (tuned for `base_footprint`).
 
 ### 2. Play rosbag or run real camera
 
