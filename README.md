@@ -23,33 +23,38 @@ source install/setup.bash
 
 ## Usage (Phase 2: Navigation)
 
-### Real hardware / rosbag (rtabmap localization)
+Two launch files × two playback sources = four localization modes.
+`text_nav_rtabmap.launch.py` runs rtabmap localization against real sensor
+data; `text_nav_sim.launch.py` runs AMCL against Gazebo. Each works live or
+from a rosbag.
 
-Requires Phase 1 outputs: `rtabmap_db/<bag_name>.db` (map) and `landmarks/<bag_name>.yaml` (text landmarks).
-
-#### 1. Launch navigation stack
-
-```bash
-ros2 launch text_nav_bridge text_nav_rtabmap.launch.py bag_name:=rosbag2_2026_01_08-15_03_00
-```
-
-A single `bag_name` argument resolves both the landmark file and rtabmap DB:
+The rtabmap launch requires Phase 1 outputs: `rtabmap_db/<bag_name>.db`
+(map) and `landmarks/<bag_name>.yaml` (text landmarks). A single `bag_name`
+argument resolves both:
 - `src/text_nav_bridge/landmarks/<bag_name>.yaml`
 - `src/text_nav_bridge/rtabmap_db/<bag_name>.db`
 
-#### 2. Play rosbag or run real camera
+### RTAB-Map localization — live RealSense
 
 ```bash
-# Rosbag
-ros2 bag play <your_bagfile> --clock
-
-# Or real camera
+ros2 launch text_nav_bridge text_nav_rtabmap.launch.py \
+  bag_name:=rosbag2_2026_01_08-15_03_00 \
+  use_sim_time:=false
 ros2 launch rtabmap_ros realsense_infra_for_record.launch.py
 ```
 
-Spawns RTAB-Map localization (loading the bag's `.db`) + Nav2 + text_nav_bridge + RViz.
+### RTAB-Map localization — rosbag
 
-### Gazebo simulation (AMCL localization)
+```bash
+ros2 launch text_nav_bridge text_nav_rtabmap.launch.py \
+  bag_name:=rosbag2_2026_01_08-15_03_00
+ros2 bag play <your_bagfile> --clock
+```
+
+Both rtabmap modes spawn RTAB-Map localization (loading the `.db`) + Nav2 +
+text_nav_bridge + RViz.
+
+### AMCL localization (Gazebo) — live simulation
 
 Run the Gazebo world (see [text_nav_sim](../text_nav_sim/)) in another
 terminal first, then:
@@ -60,9 +65,21 @@ ros2 launch text_nav_bridge text_nav_sim.launch.py \
   map_yaml_file:=~/map/<DIR>/map.yaml
 ```
 
-Spawns map_server + AMCL + Nav2 + text_nav_bridge + RViz using
-[`config/nav2_sim_params.yaml`](config/nav2_sim_params.yaml) (tuned for
-`base_footprint`). RViz config:
+### AMCL localization (Gazebo) — rosbag
+
+With a rosbag recorded from the Gazebo world (`/scan`, `/odom`, `/tf`,
+`/tf_static`, `/clock`):
+
+```bash
+ros2 launch text_nav_bridge text_nav_sim.launch.py \
+  landmark_file:=~/map/<DIR>/landmarks.yaml \
+  map_yaml_file:=~/map/<DIR>/map.yaml
+ros2 bag play <sim_bag> --clock
+```
+
+Both sim modes spawn map_server + AMCL + Nav2 + text_nav_bridge + RViz
+using [`config/nav2_sim_params.yaml`](config/nav2_sim_params.yaml) (tuned
+for `base_footprint`). RViz config:
 [`rviz/text_nav_sim.rviz`](rviz/text_nav_sim.rviz).
 
 ### Send a text command (either launch)
