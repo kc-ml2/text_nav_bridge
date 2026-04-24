@@ -24,6 +24,8 @@ For the full pipeline, setup details, and runnable examples, see the
 [text_navigation](../../../text_navigation/) example repository.
 
 ## Interface
+<img width="2367" height="1362" alt="text navigation brdige" src="https://github.com/user-attachments/assets/1fb5c819-d8d6-4629-a59a-c599175198fd" />
+
 
 ### Interface with Nav2
 
