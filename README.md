@@ -27,15 +27,14 @@ For the full pipeline, setup details, and runnable examples, see the
 
 ### Interface with Nav2
 
-`text_nav_bridge` acts as a Nav2 client.
-
-- Action client:
-  `navigate_to_pose` (`nav2_msgs/action/NavigateToPose`)
-- Map input used for goal selection:
-  `/map` (`nav_msgs/msg/OccupancyGrid`)
-
 The node does not perform path planning itself.
-It selects a reachable goal pose near the landmark and hands the request to Nav2.
+It selects a reachable goal pose near the landmark and hands the request to `Nav2`.
+
+### Actions
+
+| Name | Type | Description |
+|------|------|-------------|
+| `navigate_to_pose` | `nav2_msgs/action/NavigateToPose` | Sends the selected goal pose to Nav2 for navigation execution |
 
 ### Subscribed Topics
 
