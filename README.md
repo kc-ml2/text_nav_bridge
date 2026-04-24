@@ -11,7 +11,11 @@ This package is the navigation-side bridge in the text navigation pipeline:
 
 This README only summarizes the package role and ROS interface.
 For dependencies, build instructions, and end-to-end launch examples, see the
-[text_navigation](../../../text_navigation/) example repository.
+[TextMap_Examples](https://github.com/kc-ml2/TextMap_Examples#quickstart) example repository.
+
+<p align="center">
+    <img src="./text_nav_bridge.png" alt="text_nav_bridge_example"
+</p>
 
 ## Upstream Inputs
 
@@ -21,7 +25,7 @@ This package expects the following inputs from the upstream text navigation pipe
 - A Nav2-compatible map or localization source, such as `map.pgm`, `map.yaml` or `rtabmap.db`
 
 For the full pipeline, setup details, and runnable examples, see the
-[text_navigation](../../../text_navigation/) example repository.
+[TextMap_Examples](https://github.com/kc-ml2/TextMap_Examples#quickstart) example repository.
 
 ## Interface
 <img width="2367" height="1362" alt="text navigation brdige" src="https://github.com/user-attachments/assets/1fb5c819-d8d6-4629-a59a-c599175198fd" />
