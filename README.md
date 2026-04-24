@@ -13,6 +13,10 @@ This README only summarizes the package role and ROS interface.
 For dependencies, build instructions, and end-to-end launch examples, see the
 [text_navigation](../../../text_navigation/) example repository.
 
+<p align="center">
+    <img src="./text_nav_bridge.png" alt="text_nav_bridge_example"
+</p>
+
 ## Upstream Inputs
 
 This package expects the following inputs from the upstream text navigation pipeline:
